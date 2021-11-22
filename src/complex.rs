@@ -9,6 +9,7 @@ pub struct Complex {
 impl Complex {
     pub const ZERO: Self = Self { re: 0.0, im: 0.0 };
     pub const ONE: Self = Self { re: 1.0, im: 0.0 };
+    pub const J: Self = Self { re: 0.0, im: 1.0 };
 
     pub fn new(re: f64, im: f64) -> Self {
         Self { re, im }
@@ -81,6 +82,14 @@ impl Mul<f64> for Complex {
             re: self.re * rhs,
             im: self.im * rhs,
         }
+    }
+}
+
+impl Mul<Complex> for f64 {
+    type Output = Complex;
+
+    fn mul(self, rhs: Complex) -> Self::Output {
+        rhs * self
     }
 }
 
