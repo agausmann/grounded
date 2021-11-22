@@ -1,4 +1,4 @@
-use grounded::Oscillator;
+use grounded::oscillator::Oscillator;
 
 fn main() {
     let mut osc = Oscillator::new(48000.0, 1200.0);
