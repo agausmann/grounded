@@ -5,8 +5,8 @@ fn main() {
 
     let mut buffer = [Complex::ZERO; 128];
 
-    for slot in &mut buffer {
-        *slot = Complex::new(osc.next().unwrap(), 0.0);
+    for sample in &mut buffer {
+        *sample = osc.next().unwrap();
     }
 
     fft(&mut buffer);

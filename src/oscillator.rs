@@ -1,5 +1,7 @@
 use std::f64::consts::TAU;
 
+use crate::complex::Complex;
+
 pub struct Oscillator {
     sample_rate: f64,
     frequency: f64,
@@ -17,10 +19,10 @@ impl Oscillator {
 }
 
 impl Iterator for Oscillator {
-    type Item = f64;
+    type Item = Complex;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let sample = self.phase.sin();
+        let sample = Complex::new(1.0, self.phase);
         self.phase += TAU * self.frequency / self.sample_rate;
         self.phase %= TAU;
         Some(sample)
