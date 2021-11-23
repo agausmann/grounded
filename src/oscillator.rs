@@ -22,7 +22,7 @@ impl Iterator for Oscillator {
     type Item = Complex;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let sample = Complex::new(1.0, self.phase);
+        let sample = Complex::polar(1.0, self.phase);
         self.phase += TAU * self.frequency / self.sample_rate;
         self.phase %= TAU;
         Some(sample)
