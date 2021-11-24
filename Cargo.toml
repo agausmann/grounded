@@ -1,3 +1,8 @@
+[workspace]
+members = [
+    "examples/spectrum-analyzer",
+]
+
 [package]
 name = "grounded"
 version = "0.1.0"

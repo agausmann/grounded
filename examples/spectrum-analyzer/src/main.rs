@@ -1,5 +1,4 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::SampleFormat;
 use grounded::complex::Complex;
 use grounded::fft::fft;
 use minifb::{Key, Window, WindowOptions};
@@ -7,10 +6,10 @@ use plotters::prelude::*;
 use plotters_bitmap::bitmap_pixel::BGRXPixel;
 use plotters_bitmap::BitMapBackend;
 use ringbuf::RingBuffer;
+use std::collections::VecDeque;
 use std::error::Error;
 
-const BANDWIDTH: usize = 1024;
-const FRAME_RATE: f64 = 30.0;
+const BANDWIDTH: usize = 8192;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut size = (640, 360);
@@ -50,7 +49,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     )?;
     stream.play()?;
-    let mut fft_buffer = vec![Complex::ZERO; BANDWIDTH];
+    let mut fft_deque = VecDeque::new();
+    fft_deque.resize(BANDWIDTH, Complex::ZERO);
     let mut magnitudes = vec![(0.0_f64, 0.0_f64); BANDWIDTH / 2];
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
@@ -60,17 +60,27 @@ fn main() -> Result<(), Box<dyn Error>> {
             buffer.resize(size.0 * size.1, 0);
         }
 
-        if audio_rx.is_full() {
-            audio_rx.pop_slice(&mut fft_buffer);
-            fft(&mut fft_buffer);
+        let mut consumed = 0;
+        audio_rx.access(|a, b| {
+            consumed = a.len() + b.len();
+            drop(fft_deque.drain(..consumed));
+            fft_deque.extend(a);
+            fft_deque.extend(b);
+        });
+        audio_rx.discard(consumed);
+        let mut fft_buffer = fft_deque.make_contiguous().to_vec();
+        let damping = 2.0;
+        for (i, sample) in fft_buffer.iter_mut().rev().enumerate() {
+            *sample *= 10.0_f64.powf(i as f64 * -damping / (BANDWIDTH as f64));
+        }
+        fft(&mut fft_buffer);
 
-            for i in 0..BANDWIDTH / 2 {
-                let z = fft_buffer[i];
-                magnitudes[i] = (
-                    i as f64 * sample_rate / (BANDWIDTH as f64),
-                    (z.re * z.re + z.im * z.im).sqrt(),
-                );
-            }
+        for i in 0..BANDWIDTH / 2 {
+            let z = fft_buffer[i];
+            magnitudes[i] = (
+                i as f64 * sample_rate / (BANDWIDTH as f64),
+                ((z.re * z.re + z.im * z.im) / (BANDWIDTH as f64)).sqrt(),
+            );
         }
 
         {
@@ -87,7 +97,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .margin(5)
                 .x_label_area_size(30)
                 .y_label_area_size(40)
-                .build_cartesian_2d((10.0f64..sample_rate / 2.0).log_scale(), (0.0f64..10.0))?;
+                .build_cartesian_2d((10.0..sample_rate / 2.0).log_scale(), 0.0..1.0)?;
             chart
                 .configure_mesh()
                 .x_desc("Frequency (Hz)")
