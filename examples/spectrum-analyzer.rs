@@ -9,7 +9,7 @@ use ringbuf::RingBuffer;
 use std::collections::VecDeque;
 use std::error::Error;
 
-const BANDWIDTH: usize = 8192;
+const BANDWIDTH: usize = 65536;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut size = (640, 360);
@@ -30,9 +30,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let audio_host = cpal::default_host();
     let audio_device = audio_host
-        .default_input_device()
-        .ok_or("cannot find default input device")?;
-    let input_config = audio_device.default_input_config()?;
+        .default_output_device()
+        .ok_or("cannot find default output device")?;
+    let input_config = audio_device.default_output_config()?;
+    // Alternatively, capture from the default input device:
+    // let audio_device = audio_host
+    //     .default_input_device()
+    //     .ok_or("cannot find default input device")?;
+    // let input_config = audio_device.default_input_config()?;
     let sample_rate = input_config.sample_rate().0 as f64;
     let stream = audio_device.build_input_stream(
         &input_config.into(),
@@ -69,9 +74,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         });
         audio_rx.discard(consumed);
         let mut fft_buffer = fft_deque.make_contiguous().to_vec();
-        let damping = 2.0;
+        let damping = 1.0e-4;
         for (i, sample) in fft_buffer.iter_mut().rev().enumerate() {
-            *sample *= 10.0_f64.powf(i as f64 * -damping / (BANDWIDTH as f64));
+            *sample *= 10.0_f64.powf(i as f64 * -damping);
         }
         fft(&mut fft_buffer);
 
